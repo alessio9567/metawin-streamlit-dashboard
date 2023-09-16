@@ -10,7 +10,7 @@ file_name = 'metawin_transactions_all_time.csv'
 file_path = f"{os.getcwd()}\\{file_name}"
 
 # Get the current date
-today = datetime.datetime.now()
+today = pd.Timestamp('today').date()
 
 def auto_paginate_result(query_result_set, page_size=10000):
     """
@@ -97,7 +97,7 @@ else:
 
 
 # Convert the date column to a datetime format
-df['Date'] = pd.to_datetime(df['Date'])
+df['tx_dt'] = pd.to_datetime(df['tx_dt']).dt.date
 
 # Set the page configuration
 st.set_page_config(
@@ -122,23 +122,20 @@ if tabs[0] == "Transactions and gas fees":
 
     # Filter the data by time period
     if time_period == 'Last 7 days':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=7)]
+        df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=7)]
     elif time_period == 'Last month':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=30)]
+        df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=30)]
     elif time_period == 'Last 3 months':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=90)]
+        df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=90)]
     elif time_period == 'Last year':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=365)]
+        df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=365)]
     elif time_period == 'This year':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=30)]
-    elif time_period == 'All time':
-        df_filtered = df[df['tx_dt'] > today - pd.Timedelta(days=30)]
-
-
-    data_filtered = df[df["time_period"] == time_period]
+        df_filtered = df[df['tx_dt'] > today.replace(month=1,day=1)]
+    else:
+        df_filtered = df
 
     # Weekly number of transactions by event
-    weekly_transaction_count_by_event = data_filtered.groupby(["event", "week"])["transaction_id"].count()
+    weekly_transaction_count_by_event = df_filtered.groupby(["event_name", "tx_dt"]).count()
     st.plotly_chart(
         weekly_transaction_count_by_event.unstack().plot.bar(title="Weekly number of transactions by event"),
         width=800,
@@ -146,15 +143,15 @@ if tabs[0] == "Transactions and gas fees":
     )
 
     # Weekly number of transactions by smart contract
-    weekly_transaction_count_by_smart_contract = data_filtered.groupby(["smart_contract", "week"])["transaction_id"].count()
-    st.plotly_chart(
-        weekly_transaction_count_by_smart_contract.unstack().plot.bar(title="Weekly number of transactions by smart contract"),
-        width=800,
-        height=400,
-    )
+    #weekly_transaction_count_by_smart_contract = data_filtered.groupby(["smart_contract", "week"])["transaction_id"].count()
+    #st.plotly_chart(
+    #    weekly_transaction_count_by_smart_contract.unstack().plot.bar(title="Weekly number of transactions by smart contract"),
+    #    width=800,
+    #    height=400,
+    #)
 
     # Total number of transactions
-    total_transaction_count = data_filtered["transaction_id"].count()
-    st.write("Total number of transactions:", total_transaction_count)
+    #total_transaction_count = data_filtered["transaction_id"].count()
+    #st.write("Total number of transactions:", total_transaction_count)
 
 # Raffle and tickets tab
