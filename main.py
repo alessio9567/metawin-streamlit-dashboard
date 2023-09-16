@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from flipside import Flipside
 import pandas as pd
-# import plotly.express as px
+import plotly.express as px
 import streamlit as st
 
 file_name = 'metawin_transactions_all_time.csv'
@@ -99,26 +99,18 @@ else:
 # Convert the date column to a datetime format
 df['tx_dt'] = pd.to_datetime(df['tx_dt']).dt.date
 
-# Set the page configuration
-st.set_page_config(
-    page_title="MetaWin Dashboard",
-    page_icon="🎰📊",
-    layout="wide",
-)
-
-
-# Create the sidebar
-st.sidebar.title("Dashboard")
+# Set the dash title
+st.title(  "MetaWin Dashboard 🎰📊" )
 
 # Time period selector
 time_period_options = ["Last 7 days", "Last month", "Last 3 months", "Last year", "This year", "All time"]
-time_period = st.sidebar.selectbox("Select time period:", time_period_options)
+time_period = st.selectbox("Select time period:", time_period_options)
 
 # Tabs
-tabs = st.sidebar.tabs(["Transactions and gas fees", "Raffle and tickets"])
+tabs = st.tabs(["Transactions 📊 " ,"Users 👤", "Gas Fees ⛽ ", "Tickets 🎫"])
 
-# Transactions and gas fees tab
-if tabs[0] == "Transactions and gas fees":
+# Transactions tab
+with tabs[0]:
 
     # Filter the data by time period
     if time_period == 'Last 7 days':
@@ -130,17 +122,21 @@ if tabs[0] == "Transactions and gas fees":
     elif time_period == 'Last year':
         df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=365)]
     elif time_period == 'This year':
-        df_filtered = df[df['tx_dt'] > today.replace(month=1,day=1)]
+        df_filtered = df[df['tx_dt'] > today.replace(month=1, day=1)]
     else:
         df_filtered = df
 
-    # Weekly number of transactions by event
-    weekly_transaction_count_by_event = df_filtered.groupby(["event_name", "tx_dt"]).count()
-    st.plotly_chart(
-        weekly_transaction_count_by_event.unstack().plot.bar(title="Weekly number of transactions by event"),
-        width=800,
-        height=400,
+    # Plot the number of transactions per week by event
+    fig = px.bar(
+        df_filtered,
+        x="tx_dt",
+        y="tot_txs_count",
+        title="Weekly Number of Transactions by Event ({})".format(time_period),
+        width = 800,
+        height = 400,
+        color = "event_name"
     )
+    st.plotly_chart(fig)
 
     # Weekly number of transactions by smart contract
     #weekly_transaction_count_by_smart_contract = data_filtered.groupby(["smart_contract", "week"])["transaction_id"].count()
@@ -151,7 +147,7 @@ if tabs[0] == "Transactions and gas fees":
     #)
 
     # Total number of transactions
-    #total_transaction_count = data_filtered["transaction_id"].count()
-    #st.write("Total number of transactions:", total_transaction_count)
+    total_transaction_count = df_filtered["tot_txs_count"].sum()
+    st.write("Total Number of Transactions:", total_transaction_count)
 
 # Raffle and tickets tab
