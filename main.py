@@ -107,7 +107,7 @@ time_period_options = ["Last 7 days", "Last month", "Last 3 months", "Last year"
 time_period = st.selectbox("Select time period:", time_period_options)
 
 # Tabs
-tabs = st.tabs(["Transactions 📊 " ,"Users 👤", "Gas Fees ⛽ ", "Tickets 🎫"])
+tabs = st.tabs(["Transactions 📊", "Users 👤", "Gas Fees ⛽ ", "Tickets 🎫"])
 
 # Transactions tab
 with tabs[0]:
@@ -132,10 +132,11 @@ with tabs[0]:
         x="tx_dt",
         y="tot_txs_count",
         title="Weekly Number of Transactions by Event ({})".format(time_period),
-        width = 800,
-        height = 400,
-        color = "event_name"
+        width=800,
+        height=400,
+        color="event_name"
     )
+
     st.plotly_chart(fig)
 
     # Weekly number of transactions by smart contract
