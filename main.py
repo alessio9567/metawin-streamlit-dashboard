@@ -6,11 +6,42 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-file_name = 'metawin_transactions_all_time.csv'
-file_path = f"{os.getcwd()}\\{file_name}"
+# Import the page files
+#from pages import metawin
+
+page = st.sidebar.selectbox("Select a page:", ["MetaWin", "LooksRare", "RaflDex"])
+
+# Display the corresponding Protocol based on the user's selection
+#if page == "MetaWin":
+#    metawin()
+#elif page == "LooksRare":
+#    looksrare()
+#elif page == "RaflDex":
+#    rafldex()
+
 
 # Get the current date
 today = pd.Timestamp('today').date()
+
+file_name = "{}_{}{}{}.csv".format(page.lower(),today.year,today.month,today.day)
+
+file_path = f"{os.getcwd()}\\data\\{file_name}"
+
+# Set the dash title
+st.title("NFT Raffles Dashboard 🎰📊")
+
+# Time period selector
+time_period_options = ["Last 7 days", "Last month", "Last 3 months", "Last year", "This year", "All time"]
+time_period = st.selectbox("Select time period:", time_period_options)
+
+time_agg_options = ["Daily","Weekly"]
+time_agg = st.selectbox("Select time agg:", time_agg_options)
+
+# Tabs
+tabs = st.tabs(["Transactions 📊", "Users 👤", "Gas Fees ⛽ ", "Tickets 🎫"])
+
+# Initialize `Flipside` with your API Key and API Url
+flipside = Flipside("a3e63b6a-b082-4528-ba6d-46878fd616bb", "https://api-v2.flipsidecrypto.xyz")
 
 def auto_paginate_result(query_result_set, page_size=10000):
     """
@@ -35,11 +66,10 @@ def auto_paginate_result(query_result_set, page_size=10000):
 
     return all_rows  # Return all_rows in JSON format
 
-
-if not os.path.exists(file_path):
-    # Initialize `Flipside` with your API Key and API Url
-    flipside = Flipside("a3e63b6a-b082-4528-ba6d-46878fd616bb", "https://api-v2.flipsidecrypto.xyz")
-
+#Loading Protocol Data using Flipside API (Transactions and Gas Fees)
+if os.path.exists(file_path):
+    df = pd.read_csv(file_path)
+else:
     STARTING_DATE = "'2022-01-01'"
 
     sql = f""" 
@@ -66,12 +96,12 @@ if not os.path.exists(file_path):
         AND block_timestamp > {STARTING_DATE}
     )
     SELECT
-      date_trunc('week', v1.block_timestamp) tx_dt,
+      date_trunc('day', v1.block_timestamp) tx_dt,
       contract_address,
       event_name,
       count(DISTINCT v1.tx_hash) AS tot_txs_count,
-      SUM(v2.tx_fee) AS weekly_eth_fee,
-      weekly_eth_gas_fee_paid / weekly_txs_count AS avg_gas_eth_gas_fee_paid_by_smart_contract,
+      SUM(v2.tx_fee) AS tot_eth_fee,
+      tot_eth_fee / tot_txs_count AS avg_gas_eth_gas_fee_paid_by_smart_contract,
       AVG(avg_gas_eth_gas_fee_paid_by_smart_contract) OVER(ORDER BY tx_dt)
     FROM
       metawin_txs v1
@@ -89,27 +119,20 @@ if not os.path.exists(file_path):
 
     df = auto_paginate_result(query_result_set)
 
-    df = pd.DataFrame(
-        df)
+    df = pd.DataFrame(df)
 
     df.to_csv(file_name, ',')
 
-else:
-    df = pd.read_csv(file_path)
+
+
+# Sorting Df values by Date in ascending order
+df = df.sort_values(by=['tx_dt'], ascending=True)
+
+#if time_agg_options == 'Weekly':
 
 
 # Convert the date column to a datetime format
 df['tx_dt'] = pd.to_datetime(df['tx_dt']).dt.date
-
-# Set the dash title
-st.title(  "MetaWin Dashboard 🎰📊" )
-
-# Time period selector
-time_period_options = ["Last 7 days", "Last month", "Last 3 months", "Last year", "This year", "All time"]
-time_period = st.selectbox("Select time period:", time_period_options)
-
-# Tabs
-tabs = st.tabs(["Transactions 📊", "Users 👤", "Gas Fees ⛽ ", "Tickets 🎫"])
 
 # Filter the data by time period
 if time_period == 'Last 7 days':
@@ -125,8 +148,6 @@ elif time_period == 'This year':
 else:
     df_filtered = df
 
-# Sorting Df values by Date in ascending order
-df = df.sort_values(by=['tx_dt'], ascending=True)
 
 # Transactions tab
 with tabs[0]:
@@ -140,7 +161,7 @@ with tabs[0]:
         df_filtered,
         x="tx_dt",
         y="tot_txs_count",
-        title="Weekly Number of Transactions by Event ({})".format(time_period),
+        title="{} Number of Transactions by Event ({})".format(time_agg_options,time_period),
         width=800,
         height=400,
         color="event_name",
@@ -168,18 +189,18 @@ with tabs[0]:
 with tabs[2]:
 
     # Total volume of ETH Gas Fees
-    total_eth_gas_fee = df_filtered["weekly_eth_fee"].sum()
+    total_eth_gas_fee = df_filtered["tot_eth_fee"].sum()
     st.write("Total ETH Gas Fees Generated:", total_eth_gas_fee)
 
     # Plot the volume of ETH Gas Fee per week
     fig = px.bar(
         df_filtered,
         x="tx_dt",
-        y="weekly_eth_fee",
+        y="tot_eth_fee",
         title="Weekly Volume of ETH Gas Fee ({})".format(time_period),
         width=800,
         height=400,
-        labels={"tx_dt":"Week","weekly_eth_fee":"ETH"}
+        labels={"tx_dt":"Week","tot_eth_fee":"ETH"}
     )
 
     st.plotly_chart(fig)
@@ -188,12 +209,12 @@ with tabs[2]:
     fig = px.bar(
         df_filtered,
         x="tx_dt",
-        y="weekly_eth_fee",
+        y="tot_eth_fee",
         title="Weekly Volume of ETH Gas Fee by Smart Contract ({})".format(time_period),
         width=800,
         height=400,
         color="contract_address",
-        labels={"tx_dt":"Week","weekly_eth_fee":"ETH"}
+        labels={"tx_dt":"Week","tot_eth_fee":"ETH"}
     )
 
     st.plotly_chart(fig)
@@ -201,24 +222,39 @@ with tabs[2]:
     # Moving Average ETH Gas Fee by Smart Contract (only EntrySold action)
 
     # filtering by event_name = 'EntrySold'
-    df_filtered = df_filtered[df_filtered["event_name"] == 'EntrySold']
+    df_filtered_tickets = df_filtered[df_filtered["event_name"] == 'EntrySold']
 
-    df_filtered["weekly_avg_eth_gas_fee_paid_by_smart_contract"] = df_filtered["weekly_eth_fee"]/df_filtered["tot_txs_count"]
+    df_filtered_tickets["weekly_avg_eth_gas_fee_paid_by_smart_contract"] = df_filtered_tickets["tot_eth_fee"]/df_filtered_tickets["tot_txs_count"]
 
-    df_filtered["ma_eth_gas_fee"] = df_filtered.groupby('tx_dt')['weekly_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
+    df_filtered_tickets["ma_eth_gas_fee"] = df_filtered_tickets.groupby('tx_dt')['weekly_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
+
+    st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
 
     # Plot the Moving Average ETH Gas Fee (only EntrySold event)
-    fig = px.scatter(
-        df_filtered,
-        x="tx_dt",
-        y="ma_eth_gas_fee",
-        title="Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period),
+    st.line_chart(data = df_filtered_tickets, x="tx_dt",
+                  y="ma_eth_gas_fee")
+
+    # Average ETH Gas Fee paid by Event
+    df["avg_eth_gas_fee_by_event"] = df["tot_eth_fee"]/df["tot_txs_count"]
+
+    # Plot the Moving Average ETH Gas Fee (only EntrySold event)
+    fig = px.bar(
+        df,
+        x="event_name",
+        y="avg_eth_gas_fee_by_event",
+        title="Average ETH Gas Fee by Event ({})".format(time_period),
+        color="event_name",
         width=800,
         height=400,
-        labels={"tx_dt":"Week","ma_eth_gas_fee":"ETH"}
+        labels={"event_name":"Event","avg_eth_gas_fee_by_event":"ETH"}
     )
 
     st.plotly_chart(fig)
+
+
+
+
+
 
 
 
