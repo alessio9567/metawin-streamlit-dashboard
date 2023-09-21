@@ -1,3 +1,7 @@
-# Multiprotocol NFT Raffle Dashboard
+# MetaWin Dashboard
 
-This is a dashboard for monitoring multiple web3 protocols offering NFT and crypto raffles (on Ethereum blockchain). It's built in python using Streamlit
+What is MetaWin?
+
+
+This is a analytical dashboard for monitoring MetaWin, the biggest web3 Casinò offering huge NFT and crypto prizes via Raffles (on Ethereum blockchain). 
+The dashboard is built in Python using Streamlit
