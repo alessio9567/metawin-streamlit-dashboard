@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+
 def auto_paginate_result(query_result_set, page_size=10000):
     """
     This function auto-paginates a query result to get all the data. It assumes 10,000 rows per page.
@@ -29,8 +30,8 @@ def auto_paginate_result(query_result_set, page_size=10000):
 
     return all_rows  # Return all_rows in JSON format
 
-def metawin_filter_df(df, time_period):
 
+def metawin_filter_df(df, time_period):
     if time_period == 'Last 7 days':
         df_filtered = df[df['tx_dt'] > today - datetime.timedelta(days=7)]
     elif time_period == 'Last month':
@@ -55,8 +56,40 @@ flipside = Flipside("a3e63b6a-b082-4528-ba6d-46878fd616bb", "https://api-v2.flip
 # Files path
 file_path = f"{os.getcwd()}\\data\\metawin_{today.year}{today.month}{today.day}"
 
+# Banner image URL (replace with your image URL or local path)
+banner_image_url = "https://streamlit-dashboards-frontends.s3.us-east-2.amazonaws.com/metawin-og2+(2).png"
+
+# Link URL you want to associate with the banner
+referral_link_url = "https://metawin.com/t/ffc8fa00"
+
 # Set the page configuration to wide
 st.set_page_config(layout="wide")
+
+# HTML and CSS to set the linked banner
+banner_style = f"""
+  <style>
+     .banner {{
+        background-image: url("{banner_image_url}");
+        background-size: cover;
+        height: 254px;  # Adjust the height as needed
+     }}
+     .banner-link {{
+        display: block;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+     }}
+  </style>
+"""
+
+
+# HTML code for the linked banner
+linked_banner_html = f'<a href="{referral_link_url}" target="_blank" rel="noopener noreferrer" class="banner-link"></a>'
+
+# Use the HTML/CSS to set the linked banner
+st.markdown(f'<div class="banner">{linked_banner_html}</div>{banner_style}', unsafe_allow_html=True)
 
 # Set the dash title
 st.title("METAWIN Dashboard 🎰📊")
@@ -68,10 +101,8 @@ time_period = st.selectbox("Select time period:", time_period_options)
 # Tabs
 tabs = st.tabs(["Transactions 📊 & Gas Fees ⛽", "Tickets 🎫", "Users 👤"])
 
-
 # Transactions and Gas Fees tab
 with tabs[0]:
-
     # Create two columns
     col1, col2 = st.columns(2)
 
@@ -155,7 +186,7 @@ with tabs[0]:
             width=800,
             height=400,
             color="event_name",
-            labels={"tx_dt":"Day","tot_txs_count":"Number of Transactions"}
+            labels={"tx_dt": "Day", "tot_txs_count": "Number of Transactions"}
         )
 
         st.plotly_chart(fig)
@@ -169,7 +200,7 @@ with tabs[0]:
             width=800,
             height=400,
             color="contract_address",
-            labels={"tx_dt":"Day","tot_txs_count":"Number of Transactions"}
+            labels={"tx_dt": "Day", "tot_txs_count": "Number of Transactions"}
         )
 
         st.plotly_chart(fig)
@@ -188,7 +219,7 @@ with tabs[0]:
             color="event_name",
             width=800,
             height=400,
-            labels={"tx_dt":"Day","tot_eth_fee":"ETH"}
+            labels={"tx_dt": "Day", "tot_eth_fee": "ETH"}
         )
 
         st.plotly_chart(fig)
@@ -202,13 +233,14 @@ with tabs[0]:
             width=800,
             height=400,
             color="contract_address",
-            labels={"tx_dt":"Day","tot_eth_fee":"ETH"}
+            labels={"tx_dt": "Day", "tot_eth_fee": "ETH"}
         )
 
         st.plotly_chart(fig)
 
         # Average ETH Gas Fee paid by Event
-        df_txs_and_gas_filtered["avg_eth_gas_fee_by_event"] = df_txs_and_gas_filtered["tot_eth_fee"]/df_txs_and_gas_filtered["tot_txs_count"]
+        df_txs_and_gas_filtered["avg_eth_gas_fee_by_event"] = df_txs_and_gas_filtered["tot_eth_fee"] / \
+                                                              df_txs_and_gas_filtered["tot_txs_count"]
 
         # Plot the Moving Average ETH Gas Fee (only EntrySold event)
         fig = px.bar(
@@ -219,7 +251,7 @@ with tabs[0]:
             color="event_name",
             width=800,
             height=400,
-            labels={"event_name":"Event","avg_eth_gas_fee_by_event":"ETH"}
+            labels={"event_name": "Event", "avg_eth_gas_fee_by_event": "ETH"}
         )
 
         st.plotly_chart(fig)
@@ -229,9 +261,11 @@ with tabs[0]:
         # filtering by event_name = 'EntrySold'
         df_txs_and_gas_filtered_tickets = df_txs_and_gas_filtered[df_txs_and_gas_filtered["event_name"] == 'EntrySold']
 
-        df_txs_and_gas_filtered_tickets["Daily_avg_eth_gas_fee_paid_by_smart_contract"] = df_txs_and_gas_filtered_tickets["tot_eth_fee"]/df_txs_and_gas_filtered_tickets["tot_txs_count"]
+        df_txs_and_gas_filtered_tickets["Daily_avg_eth_gas_fee_paid_by_smart_contract"] = \
+        df_txs_and_gas_filtered_tickets["tot_eth_fee"] / df_txs_and_gas_filtered_tickets["tot_txs_count"]
 
-        df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')['Daily_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
+        df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')[
+            'Daily_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
 
         st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
 
@@ -240,12 +274,10 @@ with tabs[0]:
                       x="tx_dt",
                       y="ma_eth_gas_fee")
 
-
 # Tickets tab
 with tabs[1]:
-
     # Create two columns
-    col3,col4 = st.columns(2)
+    col3, col4 = st.columns(2)
     # Loading Protocol Data using Flipside API (Tickets)
     if os.path.exists(f"{file_path}_tickets.csv"):
         df_tickets = pd.read_csv(f"{file_path}_tickets.csv")
@@ -351,7 +383,7 @@ with tabs[1]:
             title="Daily ETH Volume Tickets Sold ({})".format(time_period),
             width=800,
             height=400,
-            labels={"tx_dt":"Day","daily_eth_volume_tickets_sold":"ETH"}
+            labels={"tx_dt": "Day", "daily_eth_volume_tickets_sold": "ETH"}
         )
 
         st.plotly_chart(fig)
@@ -370,9 +402,7 @@ with tabs[1]:
             title="Daily USD Volume Tickets Sold ({})".format(time_period),
             width=800,
             height=400,
-            labels={"tx_dt":"Day","daily_usd_volume_tickets_sold":"USD"}
+            labels={"tx_dt": "Day", "daily_usd_volume_tickets_sold": "USD"}
         )
 
         st.plotly_chart(fig)
-
-
