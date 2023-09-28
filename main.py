@@ -55,21 +55,26 @@ flipside = Flipside("a3e63b6a-b082-4528-ba6d-46878fd616bb", "https://api-v2.flip
 # Files path
 file_path = f"{os.getcwd()}\\data\\metawin_{today.year}{today.month}{today.day}"
 
+# Set the page configuration to wide
+st.set_page_config(layout="wide")
+
 # Set the dash title
-st.title("MetaWin Dashboard 🎰📊")
+st.title("METAWIN Dashboard 🎰📊")
 
 # Time period selector
 time_period_options = ["Last 7 days", "Last month", "Last 3 months", "Last year", "This year", "All time"]
 time_period = st.selectbox("Select time period:", time_period_options)
 
-#time_agg_options = ["Daily", "Weekly"]
-#time_agg = st.selectbox("Select time agg:", time_agg_options)
-
 # Tabs
 tabs = st.tabs(["Transactions 📊 & Gas Fees ⛽", "Tickets 🎫", "Users 👤"])
 
+
 # Transactions and Gas Fees tab
 with tabs[0]:
+
+    # Create two columns
+    col1, col2 = st.columns(2)
+
     # Loading Protocol Data using Flipside API (Transactions and Gas Fees)
     if os.path.exists(f"{file_path}_txs_and_gas.csv"):
         df_txs_and_gas = pd.read_csv(f"{file_path}_txs_and_gas.csv")
@@ -130,111 +135,117 @@ with tabs[0]:
     # Sorting Df values by Date in ascending order
     df_txs_and_gas = df_txs_and_gas.sort_values(by=['tx_dt'], ascending=True)
 
-    #if time_agg_options == 'Weekly':
-
     # Convert the date column to a datetime format
     df_txs_and_gas['tx_dt'] = pd.to_datetime(df_txs_and_gas['tx_dt']).dt.date
 
     # Filter the data by time period
     df_txs_and_gas_filtered = metawin_filter_df(df_txs_and_gas, time_period)
 
-    # Total number of transactions
-    total_transaction_count = df_txs_and_gas_filtered["tot_txs_count"].sum()
-    st.write("Total Number of Transactions:", total_transaction_count)
+    with col1:
+        # Total number of transactions
+        total_transaction_count = df_txs_and_gas_filtered["tot_txs_count"].sum()
+        st.write("Total Number of Transactions:", total_transaction_count)
 
-    # Plot the number of transactions per week by event
-    fig = px.bar(
-        df_txs_and_gas_filtered,
-        x="tx_dt",
-        y="tot_txs_count",
-        title="Number of Transactions by Event ({})".format(time_period),
-        width=800,
-        height=400,
-        color="event_name",
-        labels={"tx_dt":"Week","tot_txs_count":"Number of Transactions"}
-    )
+        # Plot the number of transactions per Day by event
+        fig = px.bar(
+            df_txs_and_gas_filtered,
+            x="tx_dt",
+            y="tot_txs_count",
+            title="Number of Transactions by Event ({})".format(time_period),
+            width=800,
+            height=400,
+            color="event_name",
+            labels={"tx_dt":"Day","tot_txs_count":"Number of Transactions"}
+        )
 
-    st.plotly_chart(fig)
+        st.plotly_chart(fig)
 
-    # Weekly number of transactions by smart contract
-    fig = px.bar(
-        df_txs_and_gas_filtered,
-        x="tx_dt",
-        y="tot_txs_count",
-        title="Weekly Number of Transactions by Smart Contract ({})".format(time_period),
-        width=800,
-        height=400,
-        color="contract_address",
-        labels={"tx_dt":"Week","tot_txs_count":"Number of Transactions"}
-    )
+        # Daily number of transactions by smart contract
+        fig = px.bar(
+            df_txs_and_gas_filtered,
+            x="tx_dt",
+            y="tot_txs_count",
+            title="Daily Number of Transactions by Smart Contract ({})".format(time_period),
+            width=800,
+            height=400,
+            color="contract_address",
+            labels={"tx_dt":"Day","tot_txs_count":"Number of Transactions"}
+        )
 
-    st.plotly_chart(fig)
+        st.plotly_chart(fig)
 
-    # Total volume of ETH Gas Fees
-    total_eth_gas_fee = df_txs_and_gas_filtered["tot_eth_fee"].sum()
-    st.write("Total ETH Gas Fees Generated:", total_eth_gas_fee)
+    with col2:
+        # Total volume of ETH Gas Fees
+        total_eth_gas_fee = df_txs_and_gas_filtered["tot_eth_fee"].sum()
+        st.write("Total ETH Gas Fees Generated:", total_eth_gas_fee)
 
-    # Plot the volume of ETH Gas Fee per week
-    fig = px.bar(
-        df_txs_and_gas_filtered,
-        x="tx_dt",
-        y="tot_eth_fee",
-        title="Weekly Volume of ETH Gas Fee ({})".format(time_period),
-        width=800,
-        height=400,
-        labels={"tx_dt":"Week","tot_eth_fee":"ETH"}
-    )
+        # Plot the volume of ETH Gas Fee per Day
+        fig = px.bar(
+            df_txs_and_gas_filtered,
+            x="tx_dt",
+            y="tot_eth_fee",
+            title="Daily Volume of ETH Gas Fee ({})".format(time_period),
+            color="event_name",
+            width=800,
+            height=400,
+            labels={"tx_dt":"Day","tot_eth_fee":"ETH"}
+        )
 
-    st.plotly_chart(fig)
+        st.plotly_chart(fig)
 
-    # Plot the volume of ETH Gas Fee per week by smart contract
-    fig = px.bar(
-        df_txs_and_gas_filtered,
-        x="tx_dt",
-        y="tot_eth_fee",
-        title="Weekly Volume of ETH Gas Fee by Smart Contract ({})".format(time_period),
-        width=800,
-        height=400,
-        color="contract_address",
-        labels={"tx_dt":"Week","tot_eth_fee":"ETH"}
-    )
+        # Plot the volume of ETH Gas Fee per Day by smart contract
+        fig = px.bar(
+            df_txs_and_gas_filtered,
+            x="tx_dt",
+            y="tot_eth_fee",
+            title="Daily Volume of ETH Gas Fee by Smart Contract ({})".format(time_period),
+            width=800,
+            height=400,
+            color="contract_address",
+            labels={"tx_dt":"Day","tot_eth_fee":"ETH"}
+        )
 
-    st.plotly_chart(fig)
+        st.plotly_chart(fig)
 
-    # Moving Average ETH Gas Fee by Smart Contract (only EntrySold action)
+        # Average ETH Gas Fee paid by Event
+        df_txs_and_gas_filtered["avg_eth_gas_fee_by_event"] = df_txs_and_gas_filtered["tot_eth_fee"]/df_txs_and_gas_filtered["tot_txs_count"]
 
-    # filtering by event_name = 'EntrySold'
-    df_txs_and_gas_filtered_tickets = df_txs_and_gas_filtered[df_txs_and_gas_filtered["event_name"] == 'EntrySold']
+        # Plot the Moving Average ETH Gas Fee (only EntrySold event)
+        fig = px.bar(
+            df_txs_and_gas_filtered,
+            x="event_name",
+            y="avg_eth_gas_fee_by_event",
+            title="Average ETH Gas Fee by Event ({})".format(time_period),
+            color="event_name",
+            width=800,
+            height=400,
+            labels={"event_name":"Event","avg_eth_gas_fee_by_event":"ETH"}
+        )
 
-    df_txs_and_gas_filtered_tickets["weekly_avg_eth_gas_fee_paid_by_smart_contract"] = df_txs_and_gas_filtered_tickets["tot_eth_fee"]/df_txs_and_gas_filtered_tickets["tot_txs_count"]
+        st.plotly_chart(fig)
 
-    df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')['weekly_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
+        # Moving Average ETH Gas Fee by Smart Contract (only EntrySold action)
 
-    st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
+        # filtering by event_name = 'EntrySold'
+        df_txs_and_gas_filtered_tickets = df_txs_and_gas_filtered[df_txs_and_gas_filtered["event_name"] == 'EntrySold']
 
-    # Plot the Moving Average ETH Gas Fee (only EntrySold event)
-    st.line_chart(data = df_txs_and_gas_filtered_tickets, x="tx_dt",
-                  y="ma_eth_gas_fee")
+        df_txs_and_gas_filtered_tickets["Daily_avg_eth_gas_fee_paid_by_smart_contract"] = df_txs_and_gas_filtered_tickets["tot_eth_fee"]/df_txs_and_gas_filtered_tickets["tot_txs_count"]
 
-    # Average ETH Gas Fee paid by Event
-    df_txs_and_gas_filtered["avg_eth_gas_fee_by_event"] = df_txs_and_gas_filtered["tot_eth_fee"]/df_txs_and_gas_filtered["tot_txs_count"]
+        df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')['Daily_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
 
-    # Plot the Moving Average ETH Gas Fee (only EntrySold event)
-    fig = px.bar(
-        df_txs_and_gas_filtered,
-        x="event_name",
-        y="avg_eth_gas_fee_by_event",
-        title="Average ETH Gas Fee by Event ({})".format(time_period),
-        color="event_name",
-        width=800,
-        height=400,
-        labels={"event_name":"Event","avg_eth_gas_fee_by_event":"ETH"}
-    )
+        st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
 
-    st.plotly_chart(fig)
+        # Plot the Moving Average ETH Gas Fee (only EntrySold event)
+        st.line_chart(data=df_txs_and_gas_filtered_tickets,
+                      x="tx_dt",
+                      y="ma_eth_gas_fee")
+
 
 # Tickets tab
 with tabs[1]:
+
+    # Create two columns
+    col3,col4 = st.columns(2)
     # Loading Protocol Data using Flipside API (Tickets)
     if os.path.exists(f"{file_path}_tickets.csv"):
         df_tickets = pd.read_csv(f"{file_path}_tickets.csv")
@@ -284,11 +295,7 @@ with tabs[1]:
         SELECT
           date_trunc('day', tx_timestamp) AS tx_dt,
           SUM(tot_token_spent) AS daily_eth_volume_tickets_sold,
-          SUM(tot_usd_spent) AS daily_usd_volume_tickets_sold,
-          SUM(daily_volume_tickets_bought_usd) OVER (
-            ORDER BY
-              dt
-          ) AS cumulative_usd_volume_tickets_sold
+          SUM(tot_usd_spent) AS daily_usd_volume_tickets_sold
         FROM
           (
             SELECT
@@ -330,22 +337,42 @@ with tabs[1]:
     # Filter the data by time period
     df_tickets_filtered = metawin_filter_df(df_tickets, time_period)
 
-    # Total Volume ETH Tickets sold
-    total_eth_tickets_sold = df_tickets_filtered["daily_eth_volume_tickets_sold"].sum()
-    st.write("Total Volume ETH Tickets sold:", total_eth_tickets_sold)
+    with col3:
 
-    # Plot the number of transactions per week by event
-    #fig = px.bar(
-    #    df_txs_and_gas_filtered,
-    #    x="tx_dt",
-    #    y="tot_txs_count",
-    #    title="Number of Transactions by Event ({})".format(time_period),
-    #    width=800,
-    #    height=400,
-    #    color="event_name",
-    #    labels={"tx_dt":"Week","tot_txs_count":"Number of Transactions"}
-    #)
+        # Total Volume ETH Tickets sold
+        total_eth_tickets_sold = df_tickets_filtered["daily_eth_volume_tickets_sold"].sum()
+        st.write("Total Volume ETH Tickets sold:", total_eth_tickets_sold)
 
-    #st.plotly_chart(fig)
+        # Plot the daily volume of tickets sold
+        fig = px.bar(
+            df_tickets_filtered,
+            x="tx_dt",
+            y="daily_eth_volume_tickets_sold",
+            title="Daily ETH Volume Tickets Sold ({})".format(time_period),
+            width=800,
+            height=400,
+            labels={"tx_dt":"Day","daily_eth_volume_tickets_sold":"ETH"}
+        )
+
+        st.plotly_chart(fig)
+
+    with col4:
+
+        # Total Volume USD Tickets sold
+        total_usd_tickets_sold = df_tickets_filtered["daily_usd_volume_tickets_sold"].sum()
+        st.write("Total Volume USD Tickets sold:", total_usd_tickets_sold)
+
+        # Plot the daily volume of tickets sold
+        fig = px.bar(
+            df_tickets_filtered,
+            x="tx_dt",
+            y="daily_usd_volume_tickets_sold",
+            title="Daily USD Volume Tickets Sold ({})".format(time_period),
+            width=800,
+            height=400,
+            labels={"tx_dt":"Day","daily_usd_volume_tickets_sold":"USD"}
+        )
+
+        st.plotly_chart(fig)
 
 
