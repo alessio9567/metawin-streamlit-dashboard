@@ -50,8 +50,13 @@ def metawin_filter_df(df, time_period):
 # Get the current date
 today = pd.Timestamp('today').date()
 
+
 # Initialize `Flipside` with your API key and API URL
-flipside = Flipside("a3e63b6a-b082-4528-ba6d-46878fd616bb", "https://api-v2.flipsidecrypto.xyz")
+with open('api_key.txt', 'r') as file:
+    # Read the first line
+    api_key = file.readline().strip()  # .strip() removes newline characters
+
+flipside = Flipside(api_key, "https://api-v2.flipsidecrypto.xyz")
 
 # Files path
 file_path = f"{os.getcwd()}\\data\\metawin_{today.year}{today.month}{today.day}"
@@ -71,19 +76,18 @@ banner_style = f"""
      .banner {{
         background-image: url("{banner_image_url}");
         background-size: cover;
-        height: 254px;  # Adjust the height as needed
+        height: 255px;  # Adjust the height as needed
      }}
      .banner-link {{
         display: block;
         width: 100%;
-        height: 100%;
+        height: 10%;
         position: absolute;
         top: 0;
         left: 0;
      }}
   </style>
 """
-
 
 # HTML code for the linked banner
 linked_banner_html = f'<a href="{referral_link_url}" target="_blank" rel="noopener noreferrer" class="banner-link"></a>'
@@ -183,8 +187,6 @@ with tabs[0]:
             x="tx_dt",
             y="tot_txs_count",
             title="Number of Transactions by Event ({})".format(time_period),
-            width=800,
-            height=400,
             color="event_name",
             labels={"tx_dt": "Day", "tot_txs_count": "Number of Transactions"}
         )
@@ -197,8 +199,6 @@ with tabs[0]:
             x="tx_dt",
             y="tot_txs_count",
             title="Daily Number of Transactions by Smart Contract ({})".format(time_period),
-            width=800,
-            height=400,
             color="contract_address",
             labels={"tx_dt": "Day", "tot_txs_count": "Number of Transactions"}
         )
@@ -217,8 +217,6 @@ with tabs[0]:
             y="tot_eth_fee",
             title="Daily Volume of ETH Gas Fee ({})".format(time_period),
             color="event_name",
-            width=800,
-            height=400,
             labels={"tx_dt": "Day", "tot_eth_fee": "ETH"}
         )
 
@@ -230,8 +228,6 @@ with tabs[0]:
             x="tx_dt",
             y="tot_eth_fee",
             title="Daily Volume of ETH Gas Fee by Smart Contract ({})".format(time_period),
-            width=800,
-            height=400,
             color="contract_address",
             labels={"tx_dt": "Day", "tot_eth_fee": "ETH"}
         )
@@ -242,15 +238,13 @@ with tabs[0]:
         df_txs_and_gas_filtered["avg_eth_gas_fee_by_event"] = df_txs_and_gas_filtered["tot_eth_fee"] / \
                                                               df_txs_and_gas_filtered["tot_txs_count"]
 
-        # Plot the Moving Average ETH Gas Fee (only EntrySold event)
+        # Plot the Average ETH Gas Fee by Event (only EntrySold event)
         fig = px.bar(
             df_txs_and_gas_filtered,
             x="event_name",
             y="avg_eth_gas_fee_by_event",
             title="Average ETH Gas Fee by Event ({})".format(time_period),
             color="event_name",
-            width=800,
-            height=400,
             labels={"event_name": "Event", "avg_eth_gas_fee_by_event": "ETH"}
         )
 
@@ -262,17 +256,19 @@ with tabs[0]:
         df_txs_and_gas_filtered_tickets = df_txs_and_gas_filtered[df_txs_and_gas_filtered["event_name"] == 'EntrySold']
 
         df_txs_and_gas_filtered_tickets["Daily_avg_eth_gas_fee_paid_by_smart_contract"] = \
-        df_txs_and_gas_filtered_tickets["tot_eth_fee"] / df_txs_and_gas_filtered_tickets["tot_txs_count"]
+            df_txs_and_gas_filtered_tickets["tot_eth_fee"] / df_txs_and_gas_filtered_tickets["tot_txs_count"]
 
-        df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')[
-            'Daily_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
+        df_txs_and_gas_filtered_tickets["ma_eth_gas_fee"] = df_txs_and_gas_filtered_tickets.groupby('tx_dt')['Daily_avg_eth_gas_fee_paid_by_smart_contract'].transform(pd.Series.mean)
 
-        st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
+        #st.subheader("Moving Average ETH Gas Fee (only EntrySold event) ({})".format(time_period))
 
         # Plot the Moving Average ETH Gas Fee (only EntrySold event)
-        st.line_chart(data=df_txs_and_gas_filtered_tickets,
+        fig = px.line(df_txs_and_gas_filtered_tickets,
                       x="tx_dt",
-                      y="ma_eth_gas_fee")
+                      y="ma_eth_gas_fee",
+                      title="Moving Average ETH Gas Fee (only EntrySold event)")
+
+        st.plotly_chart(fig)
 
 # Tickets tab
 with tabs[1]:
@@ -381,8 +377,6 @@ with tabs[1]:
             x="tx_dt",
             y="daily_eth_volume_tickets_sold",
             title="Daily ETH Volume Tickets Sold ({})".format(time_period),
-            width=800,
-            height=400,
             labels={"tx_dt": "Day", "daily_eth_volume_tickets_sold": "ETH"}
         )
 
@@ -403,6 +397,138 @@ with tabs[1]:
             width=800,
             height=400,
             labels={"tx_dt": "Day", "daily_usd_volume_tickets_sold": "USD"}
+        )
+
+        st.plotly_chart(fig)
+
+# Users tab
+with tabs[2]:
+    # Create two columns
+    col1, col2 = st.columns(2)
+
+    # Loading Protocol Data using Flipside API (Transactions and Gas Fees)
+    if os.path.exists(f"{file_path}_users.csv"):
+        df_users = pd.read_csv(f"{file_path}_users.csv")
+    else:
+        STARTING_DATE = "'2022-01-01'"
+
+        sql = f""" 
+           with metawin_txs AS (
+                  SELECT
+                    *,
+                    concat(contract_address, '_', decoded_log:raffleId) AS raffle_id
+                  FROM
+                    ethereum.core.fact_decoded_event_logs
+                  WHERE
+                    contract_address IN (
+                      SELECT
+                        DISTINCT contract_address
+                      FROM
+                        ethereum.core.fact_decoded_event_logs
+                      WHERE
+                        decoded_log:"role" IN (
+                          '0x523a704056dcd17bcf83bed8b68c59416dac1119be77755efe3bde0a64e46e0c',
+                          '0xde5ee446972f4e39ab62c03aa34b2096680a875c3fdb3eb2f947cbb93341c058'
+                        )
+                        and decoded_log:"sender" = '0x3684a8007dc9df696a86b0c5c89a8032b78b5b0d'
+                        AND block_timestamp > '2022-01-01'
+                    )
+                    AND block_timestamp > '2022-01-01'
+                ),
+                t1 AS (
+                  SELECT
+                    date_trunc('day', v1.block_timestamp) AS dayt,
+                    decoded_log:buyer AS user_address
+                  FROM
+                    metawin_txs v1
+                    JOIN ethereum.core.fact_transactions v2 ON v1.tx_hash = v2.tx_hash
+                  WHERE
+                    v1.event_name = 'EntrySold'
+                    and v2.eth_value > 0
+                    and v2.block_timestamp > '2022-01-01'
+                  GROUP BY
+                    1,
+                    2
+                ),
+                t2 AS (
+                  SELECT
+                    date_trunc('day', t1.dayt) AS dayt,
+                    user_address,
+                    COUNT(*) as num_days
+                  FROM
+                    t1
+                  GROUP BY
+                    1,
+                    2
+                  HAVING
+                    COUNT(*) >= 1
+                ),
+                active_users AS (
+                  SELECT
+                    dayt,
+                    num_days,
+                    COUNT(*) as num_active_users
+                  FROM
+                    t2
+                  GROUP BY
+                    1,
+                    2
+                )
+                SELECT
+                  dayt as tx_dt,
+                  num_active_users,
+                  AVG(num_active_users) OVER (
+                    ORDER BY
+                      dayt
+                  ) AS avg_num_active_users
+                FROM
+                  active_users
+                GROUP BY
+                  1,
+                  2
+        """
+
+        # Run the query against Flipside's query engine and await the results
+        query_result_set = flipside.query(sql)
+
+        df_users = auto_paginate_result(query_result_set)
+
+        df_users = pd.DataFrame(df_users)
+
+        df_users.to_csv(f"{file_path}_users.csv", ',')
+
+    # Sorting Df values by Date in ascending order
+    df_users = df_users.sort_values(by=['tx_dt'], ascending=True)
+
+    # Convert the date column to a datetime format
+    df_users['tx_dt'] = pd.to_datetime(df_users['tx_dt']).dt.date
+
+    # Filter the data by time period
+    df_users_filtered = metawin_filter_df(df_users, time_period)
+
+    with col1:
+        # Average Number of Daily Ticket Buyers (Paid Entries)
+        avg_num_daily_ticket_buyers = df_users_filtered["num_active_users"].mean()
+        st.write("Average Number of Daily Ticket Buyers (Paid Entries):", avg_num_daily_ticket_buyers)
+
+        # Plot the number of Daily Ticket Buyers (Paid Entries)
+        fig = px.bar(
+            df_users_filtered,
+            x="tx_dt",
+            y="num_active_users",
+            title="Daily Ticket Buyers (Paid Entries) ({})".format(time_period),
+            labels={"tx_dt": "Day", "num_active_users": "Number of Users"}
+        )
+
+        st.plotly_chart(fig)
+
+        # Plot the Moving Average Daily Ticket Buyers (Paid Entries)
+        fig = px.line(
+            df_users_filtered,
+            x="tx_dt",
+            y="avg_num_active_users",
+            title="Moving Average Daily Ticket Buyers (Paid Entries) ({})".format(time_period),
+            labels={"tx_dt": "Day", "avg_num_active_users": "Average Number of Users"}
         )
 
         st.plotly_chart(fig)
